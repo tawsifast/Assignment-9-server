@@ -2,11 +2,13 @@ const dns = require("node:dns");
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 const express = require("express");
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const app = express();
 const dotenv= require('dotenv');
 dotenv.config();
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const app = express();
 const cors = require("cors");
+app.use(cors());
+app.use(express.json());
 const PORT =process.env.PORT
 
 // const uri ="mongodb+srv://assignment-9:Voz7wAHJDbbqjxfj@tawsifop.5z3mddc.mongodb.net/?appName=TawsifOp"
@@ -28,12 +30,57 @@ async function run() {
     await client.connect();
 
     const db = client.db("assignment-9");
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    const carCollection = db.collection("cars");
+    const carListingCollection = db.collection("carListing");
+    const carBookingCollection = db.collection("carBooking")
+   
+    app.get("/explore", async(req, res)=>{
+        const result = await carCollection.find().toArray();
+        res.json(result);
+    })
+
+    // client site theke add car hote theke data ekhane explore e asbe
+    app.post("/explore", async(req, res) =>{
+        const carsData = req.body;
+        console.log(carsData);
+        const result = await carCollection.insertOne(carsData);
+        res.json(result)
+    })
+
+    app.post("/listing", async(req, res) =>{
+        const carsData = req.body;
+        console.log(carsData);
+        const result = await carListingCollection.insertOne(carsData);
+        res.json(result)
+    })
+    app.get("/listing", async (req, res) => {
+    const result = await carListingCollection.find().toArray();
+    res.json(result);
+    });
+
+    app.get("/explore/:id", async(req, res) =>{
+        const {id} = req.params;
+        // console.log(carsData);
+        const result = await carCollection.findOne({_id: new ObjectId(id)})
+        res.json(result)
+    })
+
+    app.post("/carBooking", async (req, res) => {
+    const bookingData = req.body;
+    const result = await carBookingCollection.insertOne(bookingData);
+    res.json(result);
+});
+
+    app.get("/carBooking/:userId", async (req, res) => {
+    const {userId} = req.params;
+    const result = await carBookingCollection.find({userId:userId}).toArray();
+    res.json(result);
+});
+
+
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
