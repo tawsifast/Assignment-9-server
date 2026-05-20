@@ -47,16 +47,7 @@ async function run() {
         res.json(result)
     })
 
-    app.post("/listing", async(req, res) =>{
-        const carsData = req.body;
-        console.log(carsData);
-        const result = await carListingCollection.insertOne(carsData);
-        res.json(result)
-    })
-    app.get("/listing", async (req, res) => {
-    const result = await carListingCollection.find().toArray();
-    res.json(result);
-    });
+    
 
     app.get("/explore/:id", async(req, res) =>{
         const {id} = req.params;
@@ -76,6 +67,31 @@ async function run() {
     const result = await carBookingCollection.find({userId:userId}).toArray();
     res.json(result);
 });
+
+    app.post("/listing", async(req, res) =>{
+        const carsData = req.body;
+        console.log(carsData);
+        const result = await carListingCollection.insertOne(carsData);
+        res.json(result)
+    })
+
+    app.get("/listing/:userId", async (req, res) => {
+    const {userId} = req.params;
+    const result = await carListingCollection.find({userId:userId}).toArray();
+    res.json(result);
+    });
+
+    // app.delete("/explore/:id", async(req, res)=>{
+    //   const {id} = req.params;
+    //   const result = await carCollection.deleteOne({_id: new ObjectId(id)});
+    //   res.json(result);
+    // })
+
+    app.delete("/listing/:id", async(req, res)=>{
+      const {id} = req.params;
+      const result = await carListingCollection.deleteOne({_id: new ObjectId(id)});
+      res.json(result);
+    })
 
 
   } finally {
