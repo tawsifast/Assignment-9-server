@@ -7,6 +7,7 @@ dotenv.config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const cors = require("cors");
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 app.use(cors());
 app.use(express.json());
 const PORT =process.env.PORT
@@ -23,6 +24,28 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.CLIENT_URL}/api/auth/jwks`)
+)
+
+const varifyToken = async (req, res, next) =>{
+  const authHeader = req?.headers.authorization;
+  if(!authHeader){
+      return res.status(401).json({message:"unauthorized"})
+  }
+  const token = authHeader.split(" ")[1];
+  if(!token){
+      return res.status(401).json({message:"unauthorized"})
+  }
+   try{
+      const {payload} = await jwtVerify(token, JWKS);
+      console.log(payload,"payload");
+      next()
+    }catch(error){
+      return res.status(401).json({message:"Forbidden"})
+    }
+}
 
 async function run() {
   try {
@@ -49,14 +72,14 @@ async function run() {
 
     
 
-    app.get("/explore/:id", async(req, res) =>{
+    app.get("/explore/:id", varifyToken, async(req, res) =>{
         const {id} = req.params;
         // console.log(carsData);
         const result = await carCollection.findOne({_id: new ObjectId(id)})
         res.json(result)
     })
 
-    app.post("/carBooking", async (req, res) => {
+    app.post("/carBooking", varifyToken, async (req, res) => {
     const bookingData = req.body;
     const result = await carBookingCollection.insertOne(bookingData);
     res.json(result);
@@ -74,6 +97,10 @@ async function run() {
         const result = await carListingCollection.insertOne(carsData);
         res.json(result)
     })
+    app.get("/listing", async(req, res) =>{
+        const result = await carListingCollection.find().toArray();
+        res.json(result);
+    })
 
     app.get("/listing/:userId", async (req, res) => {
     const {userId} = req.params;
@@ -90,6 +117,16 @@ async function run() {
     app.delete("/listing/:id", async(req, res)=>{
       const {id} = req.params;
       const result = await carListingCollection.deleteOne({_id: new ObjectId(id)});
+      res.json(result);
+    })
+
+    app.patch("/listing/:id", async(req, res)=>{
+      const {id} = req.params;
+      const newlyUpdatedData = req.body;
+      const result = await carListingCollection.updateOne(
+        {_id: new ObjectId(id)},
+        {$set: newlyUpdatedData}
+      )
       res.json(result);
     })
 
