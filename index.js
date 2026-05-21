@@ -50,7 +50,7 @@ const varifyToken = async (req, res, next) =>{
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("assignment-9");
     const carCollection = db.collection("cars");
@@ -98,11 +98,17 @@ async function run() {
   res.json(result);
 });
 
-    app.get("/carBooking/:userId", async (req, res) => {
+    app.get("/carBooking/:userId",  async (req, res) => {
     const {userId} = req.params;
     const result = await carBookingCollection.find({userId:userId}).toArray();
     res.json(result);
 });
+
+    app.delete("/carBooking/:id", varifyToken, async(req, res)=>{
+      const {id} = req.params;
+      const result = await carBookingCollection.deleteOne({_id: new ObjectId(id)})
+      res.json(result);
+    })
 
     app.post("/listing", async(req, res) =>{
         const carsData = req.body;
@@ -115,7 +121,7 @@ async function run() {
         res.json(result);
     })
 
-    app.get("/listing/:userId", async (req, res) => {
+    app.get("/listing/:userId",  async (req, res) => {
     const {userId} = req.params;
     const result = await carListingCollection.find({userId:userId}).toArray();
     res.json(result);
