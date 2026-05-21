@@ -57,10 +57,10 @@ async function run() {
     const carListingCollection = db.collection("carListing");
     const carBookingCollection = db.collection("carBooking")
    
-    app.get("/explore", async(req, res)=>{
-        const result = await carCollection.find().toArray();
-        res.json(result);
-    })
+    // app.get("/explore", async(req, res)=>{
+    //     const result = await carCollection.find().toArray();
+    //     res.json(result);
+    // })
 
     // client site theke add car hote theke data ekhane explore e asbe
     app.post("/explore", async(req, res) =>{
@@ -79,10 +79,23 @@ async function run() {
         res.json(result)
     })
 
-    app.post("/carBooking", varifyToken, async (req, res) => {
-    const bookingData = req.body;
-    const result = await carBookingCollection.insertOne(bookingData);
-    res.json(result);
+   app.post("/carBooking", async (req, res) => {
+  const bookingData = req.body;
+
+  const result = await carBookingCollection.insertOne(bookingData);
+
+
+  await carCollection.updateOne(
+    { _id: new ObjectId(bookingData.carId) },
+    { $inc: { booking_count: 1 } }
+  );
+
+  await carListingCollection.updateOne(
+    { _id: new ObjectId(bookingData.carId) },
+    { $inc: { booking_count: 1 } }
+  );
+
+  res.json(result);
 });
 
     app.get("/carBooking/:userId", async (req, res) => {
@@ -132,12 +145,8 @@ async function run() {
 
 
     // search & filter
-    app.get("/explore", async (req, res) => {
-  const search = decodeURIComponent(req.query.search || "").trim();
-  const category = decodeURIComponent(req.query.category || "").trim();
-
-  console.log("search:", search, "category:", category); // ← server terminal এ দেখো
-
+   app.get("/explore", async (req, res) => {
+  const { search, category } = req.query;
   let query = {};
 
   if (search) {
@@ -152,9 +161,8 @@ async function run() {
   }
 
   const result = await carCollection.find(query).toArray();
-  console.log("result count:", result.length); // ← কতটা আসছে?
   res.json(result);
-  });
+});
 
 
 
