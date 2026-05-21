@@ -131,6 +131,33 @@ async function run() {
     })
 
 
+    // search & filter
+    app.get("/explore", async (req, res) => {
+  const search = decodeURIComponent(req.query.search || "").trim();
+  const category = decodeURIComponent(req.query.category || "").trim();
+
+  console.log("search:", search, "category:", category); // ← server terminal এ দেখো
+
+  let query = {};
+
+  if (search) {
+    query.$or = [
+      { brand: { $regex: search, $options: "i" } },
+      { model: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  if (category) {
+    query.category = category;
+  }
+
+  const result = await carCollection.find(query).toArray();
+  console.log("result count:", result.length); // ← কতটা আসছে?
+  res.json(result);
+  });
+
+
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
