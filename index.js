@@ -66,6 +66,11 @@ async function run() {
     app.post("/explore", async(req, res) =>{
         const carsData = req.body;
         console.log(carsData);
+        const existing = await carCollection.findOne({ image: carsData.image });
+    
+        if(existing) {
+        return res.status(409).json({ message: "This car already exists!" });
+        }
         const result = await carCollection.insertOne(carsData);
         res.json(result)
     })
@@ -113,9 +118,17 @@ async function run() {
     app.post("/listing", async(req, res) =>{
         const carsData = req.body;
         console.log(carsData);
+        const existing = await carListingCollection.findOne({image: carsData.image,
+        userId: carsData.userId 
+        });
+    
+        if(existing) {
+        return res.status(409).json({ message: "Already in your listing!" });
+        }
         const result = await carListingCollection.insertOne(carsData);
         res.json(result)
     })
+
     app.get("/listing", async(req, res) =>{
         const result = await carListingCollection.find().toArray();
         res.json(result);
@@ -138,6 +151,14 @@ async function run() {
       const result = await carListingCollection.deleteOne({_id: new ObjectId(id)});
       res.json(result);
     })
+
+
+
+//     app.delete("/explore/:id", async(req, res) => {
+//     const {id} = req.params;
+//     const result = await carCollection.deleteOne({_id: new ObjectId(id)});
+//     res.json(result);
+// })
 
     app.patch("/listing/:id", async(req, res)=>{
       const {id} = req.params;
