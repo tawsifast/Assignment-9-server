@@ -86,6 +86,14 @@ async function run() {
 
    app.post("/carBooking", async (req, res) => {
   const bookingData = req.body;
+  const existing = await carBookingCollection.findOne({
+    userId: bookingData.userId,
+    carId: bookingData.carId
+  });
+
+  if(existing) {
+    return res.status(409).json({ message: "You already booked this car!" });
+  }
 
   const result = await carBookingCollection.insertOne(bookingData);
 
