@@ -154,33 +154,69 @@ async function run() {
     //   res.json(result);
     // })
 
-    app.delete("/listing/:id", async(req, res)=>{
-      const {id} = req.params;
-      const result = await carListingCollection.deleteOne({_id: new ObjectId(id)});
-      res.json(result);
-    })
+    // app.delete("/listing/:id", async(req, res)=>{
+    //   const {id} = req.params;
+    //   const result = await carListingCollection.deleteOne({_id: new ObjectId(id)});
+    //   res.json(result);
+    // })
+
+    app.delete("/listing/:id", async(req, res) => {
+    const {id} = req.params;
+
+    // lsiting theke explore Id ber kora
+    const listing = await carListingCollection.findOne({_id: new ObjectId(id)});
+    const exploreId = listing?.exploreId;
+
+    // 2 collection theke delete
+    const listingResult = await carListingCollection.deleteOne({_id: new ObjectId(id)});
+    
+    if(exploreId) {
+        await carCollection.deleteOne({_id: new ObjectId(exploreId)});
+    }
+
+    res.json(listingResult);
+})
 
 
+  app.patch("/listing/:id", async(req, res) => {
+    const {id} = req.params;
+    const newlyUpdatedData = req.body;
 
-//     app.delete("/explore/:id", async(req, res) => {
-//     const {id} = req.params;
-//     const result = await carCollection.deleteOne({_id: new ObjectId(id)});
-//     res.json(result);
-// })
-
-    app.patch("/listing/:id", async(req, res)=>{
-      const {id} = req.params;
-      const newlyUpdatedData = req.body;
-      const result = await carListingCollection.updateOne(
+    // listing update
+    const listingResult = await carListingCollection.updateOne(
         {_id: new ObjectId(id)},
         {$set: newlyUpdatedData}
-      )
-      res.json(result);
-    })
+    );
+
+    const listing = await carListingCollection.findOne({_id: new ObjectId(id)});
+    const exploreId = listing?.exploreId;
+
+    if(exploreId) {
+        await carCollection.updateOne(
+            {_id: new ObjectId(exploreId)},
+            {$set: newlyUpdatedData}
+        );
+    }
+
+    res.json(listingResult);
+})
+
+    // app.patch("/listing/:id", async(req, res)=>{
+    //   const {id} = req.params;
+    //   const newlyUpdatedData = req.body;
+    //   const result = await carListingCollection.updateOne(
+    //     {_id: new ObjectId(id)},
+    //     {$set: newlyUpdatedData}
+    //   )
+    //   res.json(result);
+    // })
 
 
     // search & filter
-   app.get("/explore", async (req, res) => {
+   
+   
+   
+  app.get("/explore", async (req, res) => {
   const { search, category } = req.query;
   let query = {};
 
