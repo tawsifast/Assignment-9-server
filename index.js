@@ -111,11 +111,11 @@ async function run() {
   res.json(result);
 });
 
-    app.get("/carBooking/:userId",  async (req, res) => {
+    app.get("/carBooking/:userId", varifyToken,  async (req, res) => {
     const {userId} = req.params;
     const result = await carBookingCollection.find({userId:userId}).toArray();
     res.json(result);
-});
+  });
 
     app.delete("/carBooking/:id", varifyToken, async(req, res)=>{
       const {id} = req.params;
@@ -142,7 +142,7 @@ async function run() {
         res.json(result);
     })
 
-    app.get("/listing/:userId",  async (req, res) => {
+    app.get("/listing/:userId", varifyToken,  async (req, res) => {
     const {userId} = req.params;
     const result = await carListingCollection.find({userId:userId}).toArray();
     res.json(result);
