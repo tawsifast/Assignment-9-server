@@ -64,6 +64,7 @@ async function run() {
     const carListingCollection = db.collection("carListing");
     const carBookingCollection = db.collection("carBooking");
     const userCollection = db.collection("user");
+    const carFavoriteCollection = db.collection("carFavorites");
    
     // app.get("/explore", async(req, res)=>{
     //     const result = await carCollection.find().toArray();
@@ -244,6 +245,40 @@ async function run() {
     app.get("/admin/bookings", authenticate, requireAdmin, async (req, res) => {
       const bookings = await carBookingCollection.find().toArray();
       res.json(bookings);
+    });
+
+    // favorites
+    app.post("/favorites", authenticate, async (req, res) => {
+      const { userId, carId } = req.body;
+      if (!userId || !carId) return res.status(400).json({ message: "userId and carId required" });
+      const existing = await carFavoriteCollection.findOne({ userId, carId });
+      if (existing) return res.status(409).json({ message: "Already saved" });
+      const result = await carFavoriteCollection.insertOne({ userId, carId, createdAt: new Date() });
+      res.json(result);
+    });
+
+    app.delete("/favorites/:carId", authenticate, async (req, res) => {
+      const { carId } = req.params;
+      const userId = req.query.userId;
+      if (!userId) return res.status(400).json({ message: "userId required" });
+      const result = await carFavoriteCollection.deleteOne({ userId, carId });
+      res.json(result);
+    });
+
+    app.get("/favorites/:userId", authenticate, async (req, res) => {
+      const { userId } = req.params;
+      const favorites = await carFavoriteCollection.find({ userId }).toArray();
+      const carIds = favorites.map(f => new ObjectId(f.carId));
+      const cars = await carCollection.find({ _id: { $in: carIds } }).toArray();
+      const carMap = {};
+      for (const c of cars) carMap[c._id.toString()] = c;
+      const result = favorites.map(f => ({
+        ...carMap[f.carId] || {},
+        favoriteId: f._id,
+        carId: f.carId,
+        savedAt: f.createdAt,
+      })).filter(f => f.brand);
+      res.json(result);
     });
 
     // search & filter
