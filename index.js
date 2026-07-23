@@ -12,10 +12,10 @@ app.use(cors());
 app.use(express.json());
 const PORT =process.env.PORT
 
-// const uri ="mongodb+srv://assignment-9:Voz7wAHJDbbqjxfj@tawsifop.5z3mddc.mongodb.net/?appName=TawsifOp"
+
 const uri =process.env.MONGODB_URI
 
-// mongodb://assignment-9:Voz7wAHJDbbqjxfj@ac-lbnmscj-shard-00-00.5z3mddc.mongodb.net:27017,ac-lbnmscj-shard-00-01.5z3mddc.mongodb.net:27017,ac-lbnmscj-shard-00-02.5z3mddc.mongodb.net:27017/?ssl=true&replicaSet=atlas-fpr7ry-shard-0&authSource=admin&appName=TawsifOp
+
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -25,27 +25,34 @@ const client = new MongoClient(uri, {
   }
 });
 
+const CLIENT_URL = process.env.CLIENT_URL || (process.env.NODE_ENV === "production"
+  ? "https://drive-fleet-zeta.vercel.app"
+  : "http://localhost:3000");
+
 const JWKS = createRemoteJWKSet(
-  new URL(`${process.env.CLIENT_URL}/api/auth/jwks`)
+  new URL(`${CLIENT_URL}/api/auth/jwks`)
 )
 
-const varifyToken = async (req, res, next) =>{
+const authenticate = async (req, res, next) => {
   const authHeader = req?.headers.authorization;
-  if(!authHeader){
-      return res.status(401).json({message:"unauthorized"})
-  }
+  if (!authHeader) return res.status(401).json({ message: "unauthorized" });
   const token = authHeader.split(" ")[1];
-  if(!token){
-      return res.status(401).json({message:"unauthorized"})
+  if (!token) return res.status(401).json({ message: "unauthorized" });
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    req.user = payload;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: "Forbidden" });
   }
-   try{
-      const {payload} = await jwtVerify(token, JWKS);
-      console.log(payload,"payload");
-      next()
-    }catch(error){
-      return res.status(401).json({message:"Forbidden"})
-    }
-}
+};
+
+const requireAdmin = (req, res, next) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden: Admin only" });
+  }
+  next();
+};
 
 async function run() {
   try {
@@ -55,7 +62,8 @@ async function run() {
     const db = client.db("assignment-9");
     const carCollection = db.collection("cars");
     const carListingCollection = db.collection("carListing");
-    const carBookingCollection = db.collection("carBooking")
+    const carBookingCollection = db.collection("carBooking");
+    const userCollection = db.collection("user");
    
     // app.get("/explore", async(req, res)=>{
     //     const result = await carCollection.find().toArray();
@@ -63,7 +71,7 @@ async function run() {
     // })
 
     // client site theke add car hote theke data ekhane explore e asbe
-    app.post("/explore", async(req, res) =>{
+    app.post("/explore", authenticate, requireAdmin, async(req, res) =>{
         const carsData = req.body;
         console.log(carsData);
         const existing = await carCollection.findOne({ image: carsData.image });
@@ -77,15 +85,15 @@ async function run() {
 
     
 
-    app.get("/explore/:id", varifyToken, async(req, res) =>{
+    app.get("/explore/:id", authenticate, async(req, res) =>{
         const {id} = req.params;
         // console.log(carsData);
         const result = await carCollection.findOne({_id: new ObjectId(id)})
         res.json(result)
     })
 
-   app.post("/carBooking", async (req, res) => {
-  const bookingData = req.body;
+   app.post("/carBooking", authenticate, async (req, res) => {
+  const bookingData = { ...req.body, status: "pending" };
   const existing = await carBookingCollection.findOne({
     userId: bookingData.userId,
     carId: bookingData.carId
@@ -111,19 +119,19 @@ async function run() {
   res.json(result);
 });
 
-    app.get("/carBooking/:userId", varifyToken,  async (req, res) => {
+    app.get("/carBooking/:userId", authenticate,  async (req, res) => {
     const {userId} = req.params;
     const result = await carBookingCollection.find({userId:userId}).toArray();
     res.json(result);
   });
 
-    app.delete("/carBooking/:id", varifyToken, async(req, res)=>{
+    app.delete("/carBooking/:id", authenticate, async(req, res)=>{
       const {id} = req.params;
       const result = await carBookingCollection.deleteOne({_id: new ObjectId(id)})
       res.json(result);
     })
 
-    app.post("/listing", async(req, res) =>{
+    app.post("/listing", authenticate, async(req, res) =>{
         const carsData = req.body;
         console.log(carsData);
         const existing = await carListingCollection.findOne({image: carsData.image,
@@ -142,7 +150,7 @@ async function run() {
         res.json(result);
     })
 
-    app.get("/listing/:userId", varifyToken,  async (req, res) => {
+    app.get("/listing/:userId", authenticate,  async (req, res) => {
     const {userId} = req.params;
     const result = await carListingCollection.find({userId:userId}).toArray();
     res.json(result);
@@ -160,7 +168,7 @@ async function run() {
     //   res.json(result);
     // })
 
-    app.delete("/listing/:id", async(req, res) => {
+    app.delete("/listing/:id", authenticate, async(req, res) => {
     const {id} = req.params;
 
     // lsiting theke explore Id ber kora
@@ -178,7 +186,7 @@ async function run() {
 })
 
 
-  app.patch("/listing/:id", async(req, res) => {
+  app.patch("/listing/:id", authenticate, async(req, res) => {
     const {id} = req.params;
     const newlyUpdatedData = req.body;
 
@@ -212,10 +220,36 @@ async function run() {
     // })
 
 
+    // admin endpoints
+    app.get("/admin/users", authenticate, requireAdmin, async (req, res) => {
+      const users = await userCollection.find({}, {
+        projection: { password: 0 }
+      }).toArray();
+      res.json(users);
+    });
+
+    app.patch("/admin/users/:id/role", authenticate, requireAdmin, async (req, res) => {
+      const { id } = req.params;
+      const { role } = req.body;
+      if (!["customer", "admin"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      await userCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { role } }
+      );
+      res.json({ message: "Role updated successfully" });
+    });
+
+    app.get("/admin/bookings", authenticate, requireAdmin, async (req, res) => {
+      const bookings = await carBookingCollection.find().toArray();
+      res.json(bookings);
+    });
+
     // search & filter
-   
-   
-   
+    
+    
+    
   app.get("/explore", async (req, res) => {
   const { search, category } = req.query;
   let query = {};
